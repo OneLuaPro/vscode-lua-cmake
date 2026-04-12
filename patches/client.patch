@@ -1,0 +1,70 @@
+diff --git a/LICENSE b/LICENSE
+index 2558d1e..5ff777b 100644
+--- a/LICENSE
++++ b/LICENSE
+@@ -1,6 +1,7 @@
+ MIT License
+ 
+ Copyright (c) 2019 最萌小汐
++Copyright (c) 2026 The OneLuaPro project authors
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+diff --git a/README.md b/README.md
+index d5cc5cb..45de77e 100644
+--- a/README.md
++++ b/README.md
+@@ -12,6 +12,14 @@ The Lua language server provides various language features for Lua to make devel
+ 
+ [See our website for more info](https://luals.github.io).
+ 
++## OneLuaPro Integration
++
++This VSCode extension is specifically tailored for seamless integration with the [OneLuaPro](https://github.com/OneLuaPro) ecosystem. While based on the excellent work of [sumneko](https://github.com/LuaLS) and the whole LuaLS team, this version features several key adjustments:
++- **Optimized for OneLuaPro**: Pre-configured to work out-of-the-box with OneLuaPro environments.
++- **Lua 5.5 Support**: Built with Lua 5.5 as the default standard for modern development.
++- **Enhanced Stability**: Features statically linked runtime libraries to ensure a predictable development experience.
++
++
+ ## Features
+ 
+ - ⚙️ Supports `Lua 5.5`, `Lua 5.4`, `Lua 5.3`, `Lua 5.2`, `Lua 5.1`, and `LuaJIT`
+diff --git a/package.json b/package.json
+index 0d6ed7a..da4a9ee 100644
+--- a/package.json
++++ b/package.json
+@@ -3064,7 +3064,7 @@
+ 					"type": "boolean"
+ 				},
+ 				"Lua.runtime.version": {
+-					"default": "Lua 5.4",
++					"default": "Lua 5.5",
+ 					"enum": [
+ 						"Lua 5.1",
+ 						"Lua 5.2",
+@@ -3445,8 +3445,14 @@
+ 			}
+ 		]
+ 	},
+-	"description": "Lua Language Server coded by Lua",
+-	"displayName": "Lua",
++	"description": "Lua Language Server - originally by sumneko et al.",
++	"displayName": "Lua Language Server",
++        "contributors": [
++	     {
++		"name": "sumneko",
++		"url": "https://github.com/LuaLS"
++	    }
++	],
+ 	"engines": {
+ 		"vscode": "^1.86.0"
+ 	},
+@@ -3459,7 +3465,7 @@
+ 	"license": "MIT",
+ 	"main": "./client/out/src/extension",
+ 	"name": "lua",
+-	"publisher": "sumneko",
++	"publisher": "OneLuaPro",
+ 	"repository": {
+ 		"type": "git",
+ 		"url": "https://github.com/LuaLS/lua-language-server"

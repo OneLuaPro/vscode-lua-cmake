@@ -1,0 +1,13 @@
+diff --git a/scripts/writer.lua b/scripts/writer.lua
+index 72fadba..ef10f6e 100644
+--- a/scripts/writer.lua
++++ b/scripts/writer.lua
+@@ -269,7 +269,7 @@ local function generate(rule, attribute, name)
+     init_single(attribute, "cxx", "")
+ 
+     init_enum(attribute, "mode", "release", enum_mode)
+-    init_enum(attribute, "crt", "dynamic", enum_crt)
++    init_enum(attribute, "crt", "static", enum_crt)	-- CRT statically linked
+     init_enum(attribute, "warnings", "on", cc.warnings)
+     init_enum(attribute, "rtti", "on", enum_onoff)
+     init_enum(attribute, "visibility", "hidden", enum_visibility)

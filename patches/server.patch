@@ -1,0 +1,44 @@
+diff --git a/make.lua b/make.lua
+index 59bfb2dcf..62a81b0cf 100644
+--- a/make.lua
++++ b/make.lua
+@@ -3,6 +3,7 @@ local lm = require 'luamake'
+ lm.c = lm.compiler == 'msvc' and 'c89' or 'c11'
+ lm.cxx = 'c++17'
+ lm.lua = '55'
++lm.crt = 'static'
+ 
+ if lm.sanitize then
+     lm.mode = "debug"
+@@ -46,6 +47,7 @@ lm:executable "lua-language-server" {
+     },
+     sources = "make/modules.cpp",
+     windows = {
++        crt = "static",
+         sources = {
+             "make/lua-language-server.rc",
+         }
+@@ -72,10 +74,10 @@ lm:copy "copy_bootstrap" {
+     outputs = "bin/main.lua",
+ }
+ 
+-lm:msvc_copydll 'copy_vcrt' {
+-    type = "vcrt",
+-    outputs = "bin",
+-}
++-- lm:msvc_copydll 'copy_vcrt' {
++--     type = "vcrt",
++--     outputs = "bin",
++-- }
+ 
+ lm:phony "all" {
+     deps = {
+@@ -85,7 +87,7 @@ lm:phony "all" {
+     },
+     windows = {
+         deps = {
+-            "copy_vcrt"
++            -- "copy_vcrt"
+         }
+     }
+ }
