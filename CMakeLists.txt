@@ -1,166 +1,197 @@
 # ------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.31)
-cmake_policy(SET CMP0114 NEW)
-
 project(vscode-lua-cmake C CXX)
-
-include(ExternalProject)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include("cmake/macros.cmake")
 
 # ------------------------------------------------------------------------------
 # Configuration
-set(LUA_VSC_VERSION "3.18.1")
+set(LUA_VSC_VERSION "3.18.2")
 if(NOT WIN32)
   message(FATAL_ERROR "This project is currently only supported on Windows.")
 endif()
-set(CODE_SIGN_ID "" CACHE STRING "Certificate ID for code signing")
-set(CODE_SIGN_FINGERPRINT "" CACHE STRING
-  "Certificate fingerprint for vsix package signing")
-option(SIGN_VSIX_PACKAGE "Sign generated vsix-package" OFF)
+
+# ------------------------------------------------------------------------------
+# Options
+# option(SIGN_EXECUTABLE "Code-sign lua-language-server.exe" OFF)
+option(SIGN_PACKAGE "Code-sign VSIX package and contents" OFF)
 
 # ------------------------------------------------------------------------------
 # Search for tools
 find_program(GIT_EXECUTABLE NAMES git REQUIRED)
-find_program(NPM_EXECUTABLE NAMES npm REQUIRED)
 find_program(VSCE_EXECUTABLE NAMES vsce REQUIRED)
+message(STATUS "Found git and vsce.")
+# if(SIGN_EXECUTABLE)
+#   find_package(signtool)
+# endif()
+if(SIGN_PACKAGE)
+  find_program(SIGN_PACKAGE_EXE NAMES sign REQUIRED)
+endif()
 
 # ------------------------------------------------------------------------------
-# Setup signing stuff
-macro(get_cert_fingerprint_sha256 SUBJECT_PATTERN RESULT_VAR)
-  set(PS_CMD "$cert = Get-ChildItem Cert:\\CurrentUser\\My | Where-Object { $_.Subject -like '*${SUBJECT_PATTERN}*' } | Select-Object -First 1; if($cert) { $hash = [System.Security.Cryptography.SHA256]::Create().ComputeHash($cert.RawData); $hash | ForEach-Object { '{0:X2}' -f $_ } | Write-Host -NoNewline }")    
+# Setup signing stuff if vsix-package shall be signed
+if(SIGN_PACKAGE AND CODE_SIGN_ID)
+  # Calculate SHA256 fingerprint (needed by sign.exe)
+  get_cert_fingerprint_sha256("${CODE_SIGN_ID}" AUTO_FINGERPRINT)
+  if(AUTO_FINGERPRINT)
+    set(CODE_SIGN_FINGERPRINT "${AUTO_FINGERPRINT}" CACHE STRING "Auto-detected Fingerprint" FORCE)
+    message(STATUS "Auto-detected Certificate Fingerprint: ${CODE_SIGN_FINGERPRINT}")
+  else()
+    message(FATAL_ERROR "Could not auto-detect fingerprint for Subject: ${CODE_SIGN_ID}")
+  endif()
+endif()
+
+# ------------------------------------------------------------------------------
+# Fetch everythong from https://github.com/LuaLS/vscode-lua
+include(FetchContent)
+set(PATCH_SRC "${CMAKE_CURRENT_SOURCE_DIR}/patches")
+set(RES_SRC "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+# Declare fetch
+FetchContent_Declare(
+  vscode-lua
+  GIT_REPOSITORY https://github.com/LuaLS/vscode-lua.git
+  GIT_TAG        "v${LUA_VSC_VERSION}"
+  SOURCE_DIR     "${CMAKE_BINARY_DIR}/vscode-lua"
+  BINARY_DIR     "${CMAKE_BINARY_DIR}/vscode-lua"
+)
+# Execute fetch
+FetchContent_MakeAvailable(vscode-lua)
+
+# ------------------------------------------------------------------------------
+# Patch the download
+set(PATCH_LIST
+  "./client.patch"
+  "./server/server.patch"
+  "./server/3rd/luamake/luamake.patch"
+)
+foreach(PATCH_ENTRY IN LISTS PATCH_LIST)
+  # Extract name and dir
+  get_filename_component(PATCH_FILE "${PATCH_ENTRY}" NAME)
+  get_filename_component(PATCH_DIR  "${PATCH_ENTRY}" DIRECTORY)
+  # Test patch
   execute_process(
-    COMMAND powershell -NoProfile -NonInteractive -Command "${PS_CMD}"
-    OUTPUT_VARIABLE ${RESULT_VAR}
-    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND ${GIT_EXECUTABLE} apply -p1 --reverse --check "${PATCH_SRC}/${PATCH_FILE}"
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/vscode-lua/${PATCH_DIR}"
+    RESULT_VARIABLE PATCH_ALREADY_APPLIED
+    OUTPUT_QUIET
     ERROR_QUIET
-    COMMAND_ECHO NONE	# for debug: STDOUT
   )
-endmacro()
-if(CODE_SIGN_ID)
-  if(NOT signtool_FOUND)
-    message(WARNING
-      "CODE_SIGN_ID set but signtool_EXECUTABLE not defined by superbuild.")
-  endif()
-  if(SIGN_VSIX_PACKAGE)
-    find_program(VSIX_SIGN_TOOL NAMES sign REQUIRED)
-    # Calculate SHA256 fingerprint (needed by sign.exe)
-    get_cert_fingerprint_sha256("${CODE_SIGN_ID}" AUTO_FINGERPRINT)
-    if(AUTO_FINGERPRINT)
-      set(CODE_SIGN_FINGERPRINT "${AUTO_FINGERPRINT}" CACHE STRING "Auto-detected Fingerprint" FORCE)
-      message(STATUS "Auto-detected Certificate Fingerprint: ${CODE_SIGN_FINGERPRINT}")
-    else()
-      message(WARNING "Could not auto-detect fingerprint for Subject: ${CODE_SIGN_ID}")
+  # Apply patch, if not arready done
+  if(NOT PATCH_ALREADY_APPLIED EQUAL 0)
+    # If it's NOT already applied, try to apply it normally.
+    message(STATUS "Applying ${PATCH_FILE} ...")
+    execute_process(
+      COMMAND ${GIT_EXECUTABLE} apply -p1 "${PATCH_SRC}/${PATCH_FILE}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/vscode-lua/${PATCH_DIR}"
+      RESULT_VARIABLE PATCH_RESULT
+    )
+    if(NOT PATCH_RESULT EQUAL 0)
+      message(FATAL_ERROR "Patching with ${PATCH_FILE} failed!")
     endif()
+  else()
+    message(STATUS "Patch ${PATCH_FILE} already applied, skipping.")
   endif()
-endif()
+endforeach()
 
 # ------------------------------------------------------------------------------
-# Paths
-set(VSC_LUA_SRC "${CMAKE_BINARY_DIR}/vscode-lua")
-set(PATCH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/patches")
-set(VSIX_NAME "lua-${LUA_VSC_VERSION}.vsix")
-
-# ------------------------------------------------------------------------------
-ExternalProject_Add(vscode_lua_ext
-  GIT_REPOSITORY      "https://github.com/LuaLS/vscode-lua.git"
-  GIT_TAG             "v${LUA_VSC_VERSION}"
-  GIT_SUBMODULES_RECURSE ON
-  SOURCE_DIR          "${VSC_LUA_SRC}"
-
-  # We set BINARY_DIR to SOURCE_DIR so that all commands 
-  # run directly inside the cloned repository root.
-  BINARY_DIR          "${VSC_LUA_SRC}/server"
-
-  PATCH_COMMAND
-  "${GIT_EXECUTABLE}" checkout . --recurse-submodules &&
-  #
-  ${CMAKE_COMMAND} -E copy_directory "${PATCH_DIR}" "${VSC_LUA_SRC}" &&
-  #
-  ${CMAKE_COMMAND} -E remove -f "${VSC_LUA_SRC}/images/logo.png" &&
-  ${CMAKE_COMMAND} -E copy
-  "${CMAKE_CURRENT_SOURCE_DIR}/resources/lua-logo-olp-dist-128x128.png"
-  "${VSC_LUA_SRC}/images/logo.png" &&
-  #
-  ${CMAKE_COMMAND} -E remove -f "${VSC_LUA_SRC}/images/icon.ico" &&
-  ${CMAKE_COMMAND} -E copy
-  "${CMAKE_CURRENT_SOURCE_DIR}/resources/lua-logo-olp-dist.ico"
-  "${VSC_LUA_SRC}/images/icon.ico" &&
-  #
-  ${CMAKE_COMMAND} -E remove -f "${VSC_LUA_SRC}/server/make/icon.ico" &&
-  ${CMAKE_COMMAND} -E copy
-  "${CMAKE_CURRENT_SOURCE_DIR}/resources/lua-logo-olp-dist.ico"
-  "${VSC_LUA_SRC}/server/make/icon.ico" &&
-  #
-  "${GIT_EXECUTABLE}" apply -p1 client.patch &&
-  "${GIT_EXECUTABLE}" apply -p1 server.patch --directory=server/ &&
-  "${GIT_EXECUTABLE}" apply -p1 luamake.patch --directory=server/3rd/luamake/
-  
-  CONFIGURE_COMMAND   ""
-  BUILD_COMMAND       "make.bat"
-  INSTALL_COMMAND     ""
+# Install OneLuaPro images and icons
+file(
+  INSTALL "${RES_SRC}/lua-logo-olp-dist-128x128.png"
+  DESTINATION "${CMAKE_BINARY_DIR}/vscode-lua/images"
+  RENAME "logo.png"
+)
+file(
+  INSTALL "${RES_SRC}/lua-logo-olp-dist.ico"
+  DESTINATION "${CMAKE_BINARY_DIR}/vscode-lua/images"
+  RENAME "icon.ico"
+)
+file(
+  INSTALL "${RES_SRC}/lua-logo-olp-dist.ico"
+  DESTINATION "${CMAKE_BINARY_DIR}/vscode-lua/server/make"
+  RENAME "icon.ico"
 )
 
 # ------------------------------------------------------------------------------
-# --- OPTIONAL STEP: SIGN SERVER ---
-if(CODE_SIGN_ID AND signtool_FOUND)
-  file(TO_NATIVE_PATH "${signtool_EXECUTABLE}" NATIVE_SIGNTOOL)
-  ExternalProject_Add_Step(vscode_lua_ext sign_server
-    COMMAND "${NATIVE_SIGNTOOL}" sign /n "${CODE_SIGN_ID}" /tr http://ts.ssl.com /td sha256 /fd sha256 bin/lua-language-server.exe
-    DEPENDEES build
-    WORKING_DIRECTORY "${VSC_LUA_SRC}/server"
-  )
-endif()
+# Build Server via make.bat
+set(SERVER_DIR "${CMAKE_BINARY_DIR}/vscode-lua/server")
+set(SERVER_EXE "${SERVER_DIR}/bin/lua-language-server.exe")
+add_custom_command(
+  OUTPUT "${SERVER_EXE}"
+  COMMAND "make.bat"
+  WORKING_DIRECTORY "${SERVER_DIR}"
+  COMMENT "Building lua-language-server.exe ..."
+  VERBATIM
+)
+# # Optionally sign server binary
+# if(SIGN_EXECUTABLE AND signtool_FOUND AND CODE_SIGN_ID)
+#   add_custom_command(
+#     APPEND
+#     OUTPUT "${SERVER_EXE}"
+#     COMMAND "${signtool_EXECUTABLE}" sign /n "${CODE_SIGN_ID}" /tr
+#     http://ts.ssl.com /td sha256 /fd sha256 "${SERVER_EXE}"
+#     COMMENT "Signing lua-language-server.exe with ${CODE_SIGN_ID}..."
+#   )
+# endif()
+# Add target
+add_custom_target(build_lua_server
+  DEPENDS "${SERVER_EXE}"
+)
 
 # ------------------------------------------------------------------------------
-# --- PHASE: BUILD CLIENT ---
-if(CODE_SIGN_ID AND signtool_FOUND)
-  set(CLIENT_BUILD_DEP sign_server)
-else()
-  set(CLIENT_BUILD_DEP build)
-endif()
-ExternalProject_Add_Step(vscode_lua_ext build_client
+# Build Client
+add_custom_command(
+  OUTPUT "${CMAKE_BINARY_DIR}/vscode-lua/client/webvue/build/index.html"
   COMMAND "buildClient.bat"
-    DEPENDEES ${CLIENT_BUILD_DEP}
-  # If sign_server exists, it will run before this due to BEFORE/DEPENDEES logic
-  WORKING_DIRECTORY "${VSC_LUA_SRC}"
+  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/vscode-lua"
+  DEPENDS "${SERVER_EXE}"
+  COMMENT "Creating lua language client..."
+  VERBATIM
 )
+add_custom_target(build_lua_client
+  DEPENDS "${CMAKE_BINARY_DIR}/vscode-lua/client/webvue/build/index.html"
+)
+add_dependencies(build_lua_client build_lua_server)
 
 # ------------------------------------------------------------------------------
-# --- PHASE: PACKAGE ---
-ExternalProject_Add_Step(vscode_lua_ext package_client
-  COMMAND "${VSCE_EXECUTABLE}" package
-  DEPENDEES build_client
-  WORKING_DIRECTORY "${VSC_LUA_SRC}"
-  BYPRODUCTS "${VSC_LUA_SRC}/${VSIX_NAME}"
+# Create vsix package
+set(VSIX_FILE "${CMAKE_BINARY_DIR}/vscode-lua/lua-${LUA_VSC_VERSION}.vsix")
+add_custom_command(
+  OUTPUT "${VSIX_FILE}"
+  COMMAND cmd /c ${VSCE_EXECUTABLE} package
+  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/vscode-lua"
+  DEPENDS "${CMAKE_BINARY_DIR}/vscode-lua/client/webvue/build/index.html"
+  COMMENT "Creating VSCode package ${VSIX_FILE}..."
+  VERBATIM
 )
-
-set(STEP_AFTER_PACKAGE package_client)
-
-# ------------------------------------------------------------------------------
-# --- OPTIONAL STEP: SIGN PACKAGE ---
-if(CODE_SIGN_ID AND CODE_SIGN_FINGERPRINT)
-  ExternalProject_Add_Step(vscode_lua_ext sign_package
-    COMMAND "${VSIX_SIGN_TOOL}" code certificate-store -cfp ${CODE_SIGN_FINGERPRINT}
-    -u "http://certum.pl" "${VSIX_NAME}"
-    DEPENDEES package_client
-    WORKING_DIRECTORY "${VSC_LUA_SRC}"
+# Optionally sign package
+if(SIGN_PACKAGE AND CODE_SIGN_FINGERPRINT AND CODE_SIGN_ID)
+  add_custom_command(
+    APPEND
+    OUTPUT "${VSIX_FILE}"
+    COMMAND "${SIGN_PACKAGE_EXE}" code certificate-store ${VSIX_FILE}
+    -cfp "${CODE_SIGN_FINGERPRINT}" -pn OneLuaPro -v information
+    COMMENT "Signing vsix-package and contents with ${CODE_SIGN_ID}..."
   )
-  set(STEP_AFTER_PACKAGE sign_package)
-else()
-  message(STATUS "Will not sign vsix-package.")
 endif()
-
-# This ensures that 'cmake --build .' actually runs all steps up to the final VSIX
-ExternalProject_Add_StepTargets(vscode_lua_ext ${STEP_AFTER_PACKAGE})
-add_dependencies(vscode_lua_ext vscode_lua_ext-${STEP_AFTER_PACKAGE})
+add_custom_target(package_extension ALL
+  DEPENDS "${VSIX_FILE}"
+)
+add_dependencies(package_extension build_lua_client)
 
 # ------------------------------------------------------------------------------
-# --- Install ---
-install(FILES "${VSC_LUA_SRC}/${VSIX_NAME}" 
-  DESTINATION "opt/vscode")
-
+# Install
+install(FILES "${VSIX_FILE}"
+  DESTINATION "opt/vscode"
+)
+# ------------------------------------------------------------------------------
 # Notes
-# ------------------------------------------------------------------------------
+#
+# mkdir msvc && msvc
+# cmake .. -G "Visual Studio 17 2022" -A x64 -DCODE_SIGN_ID="Open Source Developer" -DCMAKE_INSTALL_PREFIX=c:/Apps/OneLuaPro -DSIGN_PACKAGE=ON
+# cmake --build . --config Release
+# cmake --install .
+#
 # mkdir intel && cd intel
-# cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx .. -DCMAKE_INSTALL_PREFIX=c:/Apps/OneLuaPro -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_C_FLAGS="/DWIN32 /D_WINDOWS /O2 /QxHost /EHsc" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHsc /O2 /QxHost /EHsc" -DCMAKE_EXE_LINKER_FLAGS="/Qoption,link,/machine:x64 /Qlibs-static" -DCMAKE_SHARED_LINKER_FLAGS="/Qoption,link,/machine:x64 /Qlibs-static" -DCMAKE_STATIC_LINKER_FLAGS="/Qoption,link,/machine:x64" -DCODE_SIGN_ID="Open Source Developer" -Dsigntool_FOUND=TRUE -Dsigntool_EXECUTABLE="C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe" -DSIGN_VSIX_PACKAGE=ON
+# cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx .. -DCMAKE_INSTALL_PREFIX=c:/Apps/OneLuaPro -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_C_FLAGS="/DWIN32 /D_WINDOWS /O2 /QxHost /EHsc" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHsc /O2 /QxHost /EHsc" -DCMAKE_EXE_LINKER_FLAGS="/Qoption,link,/machine:x64 /Qlibs-static" -DCMAKE_SHARED_LINKER_FLAGS="/Qoption,link,/machine:x64 /Qlibs-static" -DCMAKE_STATIC_LINKER_FLAGS="/Qoption,link,/machine:x64" -DCODE_SIGN_ID="Open Source Developer" -DCMAKE_INSTALL_PREFIX=c:/Apps/OneLuaPro -DSIGN_PACKAGE=ON
 # cmake --build .
 # cmake --install .
