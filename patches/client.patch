@@ -30,7 +30,7 @@ index d5cc5cb..45de77e 100644
  
  - ⚙️ Supports `Lua 5.5`, `Lua 5.4`, `Lua 5.3`, `Lua 5.2`, `Lua 5.1`, and `LuaJIT`
 diff --git a/package.json b/package.json
-index ea23c74..ba460ea 100644
+index ea23c74..4ba51ad 100644
 --- a/package.json
 +++ b/package.json
 @@ -3064,7 +3064,7 @@
@@ -68,8 +68,9 @@ index ea23c74..ba460ea 100644
  	],
  	"license": "MIT",
  	"main": "./client/out/src/extension",
- 	"name": "lua",
+-	"name": "lua",
 -	"publisher": "sumneko",
++	"name": "oneluapro-lua-language-server",
 +	"publisher": "OneLuaPro",
  	"repository": {
  		"type": "git",
