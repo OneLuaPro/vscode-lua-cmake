@@ -155,7 +155,7 @@ add_dependencies(build_lua_client build_lua_server)
 
 # ------------------------------------------------------------------------------
 # Create vsix package
-set(VSIX_FILE "${CMAKE_BINARY_DIR}/vscode-lua/lua-${LUA_VSC_VERSION}.vsix")
+set(VSIX_FILE "${CMAKE_BINARY_DIR}/vscode-lua/oneluapro-lua-language-server-${LUA_VSC_VERSION}.vsix")
 add_custom_command(
   OUTPUT "${VSIX_FILE}"
   COMMAND cmd /c ${VSCE_EXECUTABLE} package
