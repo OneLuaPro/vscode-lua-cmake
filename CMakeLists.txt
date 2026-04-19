@@ -59,29 +59,30 @@ FetchContent_MakeAvailable(vscode-lua)
 
 # ------------------------------------------------------------------------------
 # Patch the download
-set(PATCH_LIST
-  "./client.patch"
-  "./server/server.patch"
-  "./server/3rd/luamake/luamake.patch"
-)
+# Setup list of all patches
+file(GLOB_RECURSE PATCH_LIST RELATIVE "${PATCH_SRC}" "*.patch")
+# Test and apply patches
 foreach(PATCH_ENTRY IN LISTS PATCH_LIST)
   # Extract name and dir
-  get_filename_component(PATCH_FILE "${PATCH_ENTRY}" NAME)
-  get_filename_component(PATCH_DIR  "${PATCH_ENTRY}" DIRECTORY)
-  # Test patch
+  cmake_path(GET PATCH_ENTRY FILENAME PATCH_FILE)
+  cmake_path(GET PATCH_ENTRY PARENT_PATH PATCH_DIR)
+  if(PATCH_DIR STREQUAL "")
+    set(PATCH_DIR ".")
+  endif()
+  # Test patch. If it can be reverted, it is already applied.
   execute_process(
-    COMMAND ${GIT_EXECUTABLE} apply -p1 --reverse --check "${PATCH_SRC}/${PATCH_FILE}"
+    COMMAND ${GIT_EXECUTABLE} apply -p1 --reverse --check "${PATCH_SRC}/${PATCH_DIR}/${PATCH_FILE}"
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/vscode-lua/${PATCH_DIR}"
     RESULT_VARIABLE PATCH_ALREADY_APPLIED
     OUTPUT_QUIET
     ERROR_QUIET
   )
-  # Apply patch, if not arready done
+  # Apply patch, if not already done
   if(NOT PATCH_ALREADY_APPLIED EQUAL 0)
     # If it's NOT already applied, try to apply it normally.
     message(STATUS "Applying ${PATCH_FILE} ...")
     execute_process(
-      COMMAND ${GIT_EXECUTABLE} apply -p1 "${PATCH_SRC}/${PATCH_FILE}"
+      COMMAND ${GIT_EXECUTABLE} apply -p1 "${PATCH_SRC}/${PATCH_DIR}/${PATCH_FILE}"
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/vscode-lua/${PATCH_DIR}"
       RESULT_VARIABLE PATCH_RESULT
     )

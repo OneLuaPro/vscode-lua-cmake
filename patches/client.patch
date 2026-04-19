@@ -30,7 +30,7 @@ index d5cc5cb..45de77e 100644
  
  - ⚙️ Supports `Lua 5.5`, `Lua 5.4`, `Lua 5.3`, `Lua 5.2`, `Lua 5.1`, and `LuaJIT`
 diff --git a/package.json b/package.json
-index 0d6ed7a..da4a9ee 100644
+index ea23c74..ba460ea 100644
 --- a/package.json
 +++ b/package.json
 @@ -3064,7 +3064,7 @@
@@ -59,7 +59,13 @@ index 0d6ed7a..da4a9ee 100644
  	"engines": {
  		"vscode": "^1.86.0"
  	},
-@@ -3459,7 +3465,7 @@
+@@ -3454,18 +3460,15 @@
+ 	"keywords": [
+ 		"Lua",
+ 		"IntelliSense",
+-		"EmmyLua"
++		"OneLuaPro"
+ 	],
  	"license": "MIT",
  	"main": "./client/out/src/extension",
  	"name": "lua",
@@ -67,4 +73,11 @@ index 0d6ed7a..da4a9ee 100644
 +	"publisher": "OneLuaPro",
  	"repository": {
  		"type": "git",
- 		"url": "https://github.com/LuaLS/lua-language-server"
+-		"url": "https://github.com/LuaLS/lua-language-server"
+-	},
+-	"sponsor": {
+-		"url": "https://github.com/LuaLS/lua-language-server/issues/484"
++		"url": "https://github.com/OneLuaPro/vscode-lua-cmake.git"
+ 	},
+ 	"version": "3.18.2"
+ }

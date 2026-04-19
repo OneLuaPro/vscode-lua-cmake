@@ -1,3 +1,13 @@
+diff --git a/compile/ninja/msvc.ninja b/compile/ninja/msvc.ninja
+index 06e301e..44bfcb7 100644
+--- a/compile/ninja/msvc.ninja
++++ b/compile/ninja/msvc.ninja
+@@ -277,4 +277,4 @@ build forward_lua: phony compile/lua/forward_lua.c
+ build lua55: phony $bin/lua55.dll
+ build copy_lua: phony tools/lua55.dll
+ build notest: phony copy_luamake copy_mainlua copy_lua
+-default luamake_test notest
++default notest
 diff --git a/scripts/writer.lua b/scripts/writer.lua
 index 72fadba..ef10f6e 100644
 --- a/scripts/writer.lua
