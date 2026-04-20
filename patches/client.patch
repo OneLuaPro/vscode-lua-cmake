@@ -48,8 +48,8 @@ index ea23c74..4ba51ad 100644
  	},
 -	"description": "Lua Language Server coded by Lua",
 -	"displayName": "Lua",
-+	"description": "Lua Language Server - originally by sumneko et al.",
-+	"displayName": "Lua Language Server",
++	"description": "OneLuaPro Lua Language Server - originally by sumneko et al.",
++	"displayName": "OneLuaPro Lua Language Server",
 +        "contributors": [
 +	     {
 +		"name": "sumneko",
