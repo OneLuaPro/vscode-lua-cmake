@@ -5,15 +5,31 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include("cmake/macros.cmake")
 
 # ------------------------------------------------------------------------------
+# What to do upon update of this package?
+# - Check newest release tag on https://github.com/LuaLS/vscode-lua.git
+# - Set variable LUA_VSC_VERSION accordingly
+# - Most likely you will need to re-generate patches/client.patch
+#   - Clone https://github.com/LuaLS/vscode-lua.git elsewhere
+#   - Checkout to desired tag
+#   - Work in the changes as shown in the present client.patch
+#   - Create new patch with git diff > client.patch
+#   - Edit client.patch and remove any entries pointing to changes in
+#     other levels of code hirarchy
+#   - Copy client.patch to the subdirectory patches overwriting the old one
+#   - Do a compile test
+# - Most likely the other two pathches will work
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
 # Configuration
-set(LUA_VSC_VERSION "3.18.2")
+set(LUA_VSC_VERSION "3.19.1")
 if(NOT WIN32)
   message(FATAL_ERROR "This project is currently only supported on Windows.")
 endif()
 
 # ------------------------------------------------------------------------------
 # Options
-# option(SIGN_EXECUTABLE "Code-sign lua-language-server.exe" OFF)
+option(SIGN_EXECUTABLE "Code-sign lua-language-server.exe" OFF)
 option(SIGN_PACKAGE "Code-sign VSIX package and contents" OFF)
 
 # ------------------------------------------------------------------------------
@@ -21,9 +37,9 @@ option(SIGN_PACKAGE "Code-sign VSIX package and contents" OFF)
 find_program(GIT_EXECUTABLE NAMES git REQUIRED)
 find_program(VSCE_EXECUTABLE NAMES vsce REQUIRED)
 message(STATUS "Found git and vsce.")
-# if(SIGN_EXECUTABLE)
-#   find_package(signtool)
-# endif()
+if(SIGN_EXECUTABLE)
+  find_package(signtool)
+endif()
 if(SIGN_PACKAGE)
   find_program(SIGN_PACKAGE_EXE NAMES sign REQUIRED)
 endif()
@@ -123,16 +139,16 @@ add_custom_command(
   COMMENT "Building lua-language-server.exe ..."
   VERBATIM
 )
-# # Optionally sign server binary
-# if(SIGN_EXECUTABLE AND signtool_FOUND AND CODE_SIGN_ID)
-#   add_custom_command(
-#     APPEND
-#     OUTPUT "${SERVER_EXE}"
-#     COMMAND "${signtool_EXECUTABLE}" sign /n "${CODE_SIGN_ID}" /tr
-#     http://ts.ssl.com /td sha256 /fd sha256 "${SERVER_EXE}"
-#     COMMENT "Signing lua-language-server.exe with ${CODE_SIGN_ID}..."
-#   )
-# endif()
+# Optionally sign server binary
+if(SIGN_EXECUTABLE AND signtool_FOUND AND CODE_SIGN_ID)
+  add_custom_command(
+    APPEND
+    OUTPUT "${SERVER_EXE}"
+    COMMAND "${signtool_EXECUTABLE}" sign /n "${CODE_SIGN_ID}" /tr
+    http://ts.ssl.com /td sha256 /fd sha256 "${SERVER_EXE}"
+    COMMENT "Signing lua-language-server.exe with ${CODE_SIGN_ID}..."
+  )
+endif()
 # Add target
 add_custom_target(build_lua_server
   DEPENDS "${SERVER_EXE}"
@@ -193,6 +209,6 @@ install(FILES "${VSIX_FILE}"
 # cmake --install .
 #
 # mkdir intel && cd intel
-# cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx .. -DCMAKE_INSTALL_PREFIX=c:/Apps/OneLuaPro -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_C_FLAGS="/DWIN32 /D_WINDOWS /O2 /QxHost /EHsc" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHsc /O2 /QxHost /EHsc" -DCMAKE_EXE_LINKER_FLAGS="/Qoption,link,/machine:x64 /Qlibs-static" -DCMAKE_SHARED_LINKER_FLAGS="/Qoption,link,/machine:x64 /Qlibs-static" -DCMAKE_STATIC_LINKER_FLAGS="/Qoption,link,/machine:x64" -DCODE_SIGN_ID="Open Source Developer" -DCMAKE_INSTALL_PREFIX=c:/Apps/OneLuaPro -DSIGN_PACKAGE=ON
+# cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx .. -DCMAKE_INSTALL_PREFIX=c:/Apps/OneLuaPro -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_C_FLAGS="/DWIN32 /D_WINDOWS /O2 /QxHost /EHsc" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /EHsc /O2 /QxHost /EHsc" -DCMAKE_EXE_LINKER_FLAGS="/Qoption,link,/machine:x64 /Qlibs-static" -DCMAKE_SHARED_LINKER_FLAGS="/Qoption,link,/machine:x64 /Qlibs-static" -DCMAKE_STATIC_LINKER_FLAGS="/Qoption,link,/machine:x64" -DCODE_SIGN_ID="Open Source Developer" -DCMAKE_INSTALL_PREFIX=c:/Apps/OneLuaPro -DSIGN_PACKAGE=ON -DSIGN_EXECUTABLE=ON
 # cmake --build .
 # cmake --install .

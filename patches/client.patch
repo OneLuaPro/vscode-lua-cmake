@@ -11,10 +11,10 @@ index 2558d1e..5ff777b 100644
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
 diff --git a/README.md b/README.md
-index d5cc5cb..45de77e 100644
+index d5cc5cb..e59f1ba 100644
 --- a/README.md
 +++ b/README.md
-@@ -12,6 +12,14 @@ The Lua language server provides various language features for Lua to make devel
+@@ -12,6 +12,13 @@ The Lua language server provides various language features for Lua to make devel
  
  [See our website for more info](https://luals.github.io).
  
@@ -22,7 +22,6 @@ index d5cc5cb..45de77e 100644
 +
 +This VSCode extension is specifically tailored for seamless integration with the [OneLuaPro](https://github.com/OneLuaPro) ecosystem. While based on the excellent work of [sumneko](https://github.com/LuaLS) and the whole LuaLS team, this version features several key adjustments:
 +- **Optimized for OneLuaPro**: Pre-configured to work out-of-the-box with OneLuaPro environments.
-+- **Lua 5.5 Support**: Built with Lua 5.5 as the default standard for modern development.
 +- **Enhanced Stability**: Features statically linked runtime libraries to ensure a predictable development experience.
 +
 +
@@ -30,10 +29,10 @@ index d5cc5cb..45de77e 100644
  
  - ⚙️ Supports `Lua 5.5`, `Lua 5.4`, `Lua 5.3`, `Lua 5.2`, `Lua 5.1`, and `LuaJIT`
 diff --git a/package.json b/package.json
-index ea23c74..4ba51ad 100644
+index a38aced..f4ebc49 100644
 --- a/package.json
 +++ b/package.json
-@@ -3064,7 +3064,7 @@
+@@ -3264,7 +3264,7 @@
  					"type": "boolean"
  				},
  				"Lua.runtime.version": {
@@ -42,7 +41,7 @@ index ea23c74..4ba51ad 100644
  					"enum": [
  						"Lua 5.1",
  						"Lua 5.2",
-@@ -3445,8 +3445,14 @@
+@@ -3654,8 +3654,14 @@
  			}
  		]
  	},
@@ -59,7 +58,7 @@ index ea23c74..4ba51ad 100644
  	"engines": {
  		"vscode": "^1.86.0"
  	},
-@@ -3454,18 +3460,15 @@
+@@ -3663,18 +3669,15 @@
  	"keywords": [
  		"Lua",
  		"IntelliSense",
@@ -80,5 +79,5 @@ index ea23c74..4ba51ad 100644
 -		"url": "https://github.com/LuaLS/lua-language-server/issues/484"
 +		"url": "https://github.com/OneLuaPro/vscode-lua-cmake.git"
  	},
- 	"version": "3.18.2"
+ 	"version": "3.19.1"
  }
